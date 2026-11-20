@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{--bg:#f2f4f7;--panel:#fff;--ink:#1c2330;--mute:#667085;--acc:#5b4bdb;--accbg:#ece9ff;--line:#dfe3ea;--code:#eef0f4}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1216;--panel:#161a20;--ink:#e6e9ef;--mute:#8b93a3;--acc:#a99dff;--accbg:#2a2650;--line:#262c36;--code:#1e232b}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;text-align:left}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+#app{display:grid;grid-template-columns:330px 1fr;height:100%}
+#side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.top{display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+.top input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.pri,.top button{background:var(--acc);color:#fff;border-radius:8px;padding:8px 12px;font-weight:600}
+@media(prefers-color-scheme:dark){.pri,.top button{color:#14112e}}
+#nav{flex:1;overflow:auto;padding:6px 8px 16px}
+#nav h3{font-size:12px;color:var(--mute);font-weight:600;margin:16px 8px 6px}
+.sec button{display:flex;justify-content:space-between;gap:8px;width:100%;padding:6px 10px;border-radius:6px}
+.sec button:hover,.sec button.on{background:var(--accbg)}
+i{font-style:normal;color:var(--mute);font-size:12px}
+.tags,.meta{display:flex;flex-wrap:wrap;gap:6px;padding:0 6px}
+.chip{border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:13px}
+.chip.on,.chip:hover{background:var(--accbg);border-color:var(--acc)}
+.note{display:block!important}
+.note b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note span{font-size:12px;color:var(--mute)}
+.foot{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border-top:1px solid var(--line)}
+.foot .btn,.foot button{border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
+#main{overflow:auto;min-width:0}
+.bar{position:sticky;top:0;display:flex;gap:6px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line);z-index:2}
+.bar button{padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel)}
+.bar .pri{border:0;background:var(--acc)}
+.sp{flex:1}.back{display:none}
+#st{font-size:12px;color:var(--mute);align-self:center}.err{color:#d92d20!important}
+.doc,.empty{max-width:720px;margin:0 auto;padding:28px 20px 80px}
+.doc h1,.empty h1{font:600 2rem/1.2 "Source Serif 4",Georgia,serif;margin:0 0 12px}
+.doc>input,.doc textarea,.row input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.doc>input{font:600 1.5rem "Source Serif 4",Georgia,serif;margin-bottom:8px}
+.row{display:flex;gap:8px;margin-bottom:8px}
+.doc textarea{min-height:60vh;resize:vertical;font:14px/1.6 ui-monospace,Menlo,monospace}
+.md{font:1.08rem/1.75 "Source Serif 4",Georgia,serif;margin-top:20px}
+.md h1,.md h2,.md h3{line-height:1.25;margin:1.6em 0 .5em}
+.md a{color:var(--acc)}
+.md code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.88em}
+.md pre{background:var(--code);padding:14px;border-radius:8px;overflow:auto}
+.md pre code{padding:0;background:none}
+.md blockquote{margin:1em 0;padding-left:16px;border-left:3px solid var(--acc);color:var(--mute)}
+.md img{max-width:100%}.md table{border-collapse:collapse;display:block;overflow:auto}
+.md td,.md th{border:1px solid var(--line);padding:6px 10px}
+.doc h3{font-size:12px;color:var(--mute);margin:32px 0 6px}
+.doc>a{display:block;color:var(--acc);padding:2px 0}
+.empty p{color:var(--mute)}
+@media(max-width:820px){
+#app{grid-template-columns:1fr}
+#app.open #side,#app:not(.open) #main{display:none}
+.back{display:block}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<aside id="side">
+<div class="top"><input id="q" type="search" placeholder="Search, tag:x, folder:x" aria-label="Search notes"><button id="new">New note</button></div>
+<nav id="nav"></nav>
+<div class="foot">
+<label class="btn">Import .md<input id="imp" type="file" accept=".md,.markdown,.txt" multiple hidden></label>
+<button id="ref">Refresh</button>
+<span id="st" role="status"></span>
+</div>
+</aside>
+<main id="main"></main>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),K='notes-cache-v2';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+let notes=[];try{notes=JSON.parse(localStorage.getItem(K)||'[]')}catch(e){}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(notes))}catch(e){alert('Storage is full. Export a backup and delete old notes.')}};
+let f={folder:'',tag:'',pinned:false},cur=null,editing=false;
+const uid=()=>Math.random().toString(36).slice(2,10);
+const mk=(title='Untitled',body='',folder='',tags=[])=>({id:uid(),title,folder,tags,body,updated:Date.now(),pinned:false,path:null,sha:null,dirty:true});
+const allTags=n=>[...new Set([...n.tags,...[...n.body.matchAll(/(?:^|\s)#([A-Za-z][\w\-\/]*)/g)].map(m=>m[1])])];
+
+function filtered(){
+ let q=$('#q').value,tg=f.tag,fo=f.folder;
+ q=q.replace(/\btag:(\S+)/g,(m,t)=>(tg=t,'')).replace(/\bfolder:(\S+)/g,(m,t)=>(fo=t,'')).trim().toLowerCase();
+ return notes.filter(n=>(!f.pinned||n.pinned)
+  &&(!tg||allTags(n).some(t=>t===tg||t.startsWith(tg+'/')))
+  &&(!fo||n.folder===fo||n.folder.startsWith(fo+'/'))
+  &&(!q||(n.title+' '+n.body+' '+allTags(n).join(' ')+' '+n.folder).toLowerCase().includes(q)))
+  .sort((a,b)=>b.pinned-a.pinned||b.updated-a.updated);
+}
+function renderSide(){
+ const list=filtered(),fc={},tc={};
+ notes.forEach(n=>{let p='';if(n.folder)n.folder.split('/').forEach(s=>{p=p?p+'/'+s:s;fc[p]=(fc[p]||0)+1});allTags(n).forEach(t=>tc[t]=(tc[t]||0)+1)});
+ const fk=Object.keys(fc).sort(),tk=Object.keys(tc).sort();
+ $('#nav').innerHTML=
+ `<div class="sec"><button data-a="all" class="${!f.folder&&!f.tag&&!f.pinned?'on':''}">All notes <i>${notes.length}</i></button><button data-a="pin" class="${f.pinned?'on':''}">Pinned <i>${notes.filter(n=>n.pinned).length}</i></button></div>`
+ +(fk.length?`<h3>Folders</h3><div class="sec">${fk.map(p=>`<button data-a="folder" data-v="${esc(p)}" class="${f.folder===p?'on':''}" style="padding-left:${10+14*(p.split('/').length-1)}px"><span>${esc(p.split('/').pop())}</span><i>${fc[p]}</i></button>`).join('')}</div>`:'')
+ +(tk.length?`<h3>Tags</h3><div class="tags">${tk.map(t=>`<button data-a="tag" data-v="${esc(t)}" class="chip ${f.tag===t?'on':''}">#${esc(t)} <i>${tc[t]}</i></button>`).join('')}</div>`:'')
+ +`<h3>${list.length} ${list.length==1?'note':'notes'}</h3><div class="sec">${list.map(n=>`<button data-a="open" data-v="${esc(n.id)}" class="note ${n.id===cur?'on':''}"><b>${n.pinned?'📌 ':''}${esc(n.title)}</b><span>${esc(n.folder||'No folder')}, ${new Date(n.updated).toLocaleDateString()}</span></button>`).join('')}</div>`;
+}
+function renderMain(){
+ const m=$('#main'),n=notes.find(x=>x.id===cur);
+ if(!n){m.innerHTML=`<div class="empty"><h1>Your notes</h1><p>Pick a note, create one, or import .md files. Link notes with [[Note title]], tag with #tags, and group with folders like work/ideas.</p></div>`;return}
+ const bar=`<div class="bar"><button data-a="back" class="back">Back</button><span class="sp"></span>`+(editing?`<button data-a="done" class="pri">Done</button>`:`<button data-a="edit">Edit</button><button data-a="pinn">${n.pinned?'Unpin':'Pin'}</button><button data-a="dl">Download .md</button><button data-a="del">Delete</button>`)+`</div>`;
+ if(editing){
+  const fl=[...new Set(notes.map(x=>x.folder).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('');
+  m.innerHTML=bar+`<div class="doc"><input id="t" value="${esc(n.title)}" placeholder="Title" aria-label="Title"><div class="row"><input id="fo" list="fl" value="${esc(n.folder)}" placeholder="Folder, e.g. work/ideas" aria-label="Folder"><datalist id="fl">${fl}</datalist><input id="tg" value="${esc(n.tags.join(', '))}" placeholder="Tags, comma separated" aria-label="Tags"></div><textarea id="b" placeholder="Write or paste markdown" aria-label="Markdown">${esc(n.body)}</textarea></div>`;
+  const set=(id,fn)=>$(id).oninput=e=>{fn(e.target.value);n.updated=Date.now();n.dirty=true;save()};
+  set('#t',v=>n.title=v||'Untitled');set('#fo',v=>n.folder=v.trim().replace(/^\/+|\/+$/g,''));
+  set('#tg',v=>n.tags=v.split(/[, ]+/).map(t=>t.replace(/^#/,'')).filter(Boolean));set('#b',v=>n.body=v);
+  return;
+ }
+ const src=n.body.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_,t,a)=>`[${a||t}](#/t/${encodeURIComponent(t.trim())})`);
+ const html=DOMPurify.sanitize(marked.parse(src));
+ const bl=notes.filter(x=>x.id!==n.id&&new RegExp('\\[\\['+escRe(n.title)+'(\\||\\]\\])','i').test(x.body));
+ m.innerHTML=bar+`<article class="doc"><h1>${esc(n.title)}</h1><div class="meta" style="padding:0">${n.folder?`<button data-a="folder" data-v="${esc(n.folder)}" class="chip">${esc(n.folder)}</button>`:''}${allTags(n).map(t=>`<button data-a="tag" data-v="${esc(t)}" class="chip">#${esc(t)}</button>`).join('')}</div><div class="md">${html}</div>${bl.length?`<h3>Linked from</h3>`+bl.map(x=>`<a href="#/${esc(x.id)}">${esc(x.title)}</a>`).join(''):''}</article>`;
+}
+function route(){
+ const prev=notes.find(x=>x.id===cur);if(prev&&prev.dirty&&!prev.saving)persist(prev);
+ const h=decodeURIComponent(location.hash.slice(2));
+ if(h.startsWith('t/')){
+  const t=h.slice(2);let n=notes.find(x=>x.title.toLowerCase()===t.toLowerCase());
+  if(!n){n=mk(t);notes.push(n);save();editing=true}
+  location.hash='#/'+n.id;return;
+ }
+ cur=notes.find(n=>n.id===h)?h:null;
+ $('#app').classList.toggle('open',!!cur);renderSide();renderMain();
+}
+const mobile=()=>matchMedia('(max-width:820px)').matches;
+const dl=(name,text,type='text/markdown')=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+const toMd=n=>`---\ntitle: ${n.title}\nfolder: ${n.folder}\ntags: [${n.tags.join(', ')}]\npinned: ${!!n.pinned}\nupdated: ${n.updated}\n---\n${n.body}`;
+function parse(text,name){
+ text=text.replace(/\r\n/g,'\n');let body=text,meta={},m=text.match(/^---\n([\s\S]*?)\n---\n?/);
+ if(m){body=text.slice(m[0].length);m[1].split('\n').forEach(l=>{const i=l.indexOf(':');if(i>0)meta[l.slice(0,i).trim().toLowerCase()]=l.slice(i+1).trim()})}
+ const tags=(meta.tags||'').replace(/[\[\]#"']/g,'').split(/[, ]+/).filter(Boolean);
+ const title=meta.title||(body.match(/^#\s+(.+)$/m)||[])[1]||name.replace(/\.\w+$/,'');
+ const n=mk(title,body,(meta.folder||'').replace(/^\/+|\/+$/g,''),tags);n.pinned=meta.pinned==='true';n.updated=Number(meta.updated)||n.updated;return n;
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-a]');if(!b)return;
+ const a=b.dataset.a,v=b.dataset.v,n=notes.find(x=>x.id===cur);
+ if(a==='all'){f={folder:'',tag:'',pinned:false};$('#q').value='';renderSide()}
+ else if(a==='pin'){f.pinned=!f.pinned;renderSide()}
+ else if(a==='folder'||a==='tag'){f[a]=f[a]===v?'':v;renderSide();if(mobile()&&b.closest('#main'))location.hash='#/'}
+ else if(a==='open'){editing=false;location.hash='#/'+v}
+ else if(a==='back')location.hash='#/';
+ else if(a==='edit'){editing=true;renderMain()}
+ else if(a==='done'){editing=false;renderSide();renderMain();persist(n)}
+ else if(a==='pinn'){n.pinned=!n.pinned;n.updated=Date.now();renderSide();renderMain();persist(n)}
+ else if(a==='dl')dl(n.title.replace(/[^\w\- ]+/g,'')+'.md',toMd(n));
+ else if(a==='del'&&confirm('Delete "'+n.title+'"?')){remove(n);location.hash='#/'}
+});
+$('#q').oninput=renderSide;
+$('#new').onclick=()=>{const n=mk('Untitled','',f.folder,f.tag?[f.tag]:[]);notes.push(n);save();editing=true;location.hash='#/'+n.id};
+$('#imp').onchange=async e=>{
+ for(const file of e.target.files){const n=parse(await file.text(),file.name);notes.push(n);persist(n)}
+ save();e.target.value='';renderSide();
+};
+$('#ref').onclick=sync;
+const slug=s=>s.trim().replace(/[\\\/:*?"<>|#%]+/g,'').replace(/\.{2,}/g,'.').replace(/\s+/g,' ').slice(0,80)||'untitled';
+const pathFor=n=>'notes/'+(n.folder?n.folder.split('/').map(slug).join('/')+'/':'')+slug(n.title)+'.md';
+const status=(m,err)=>{const e=$('#st');e.textContent=m;e.className=err?'err':''};
+let q=Promise.resolve();
+const queue=fn=>{const p=q.then(fn);q=p.catch(()=>{});return p};
+async function api(method,body){
+ let pw=localStorage.getItem('notes-pass')||'';
+ for(;;){
+  const r=await fetch('/api/notes',{method,headers:{'Content-Type':'application/json','x-password':pw},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401){pw=prompt('Enter your password')||'';if(!pw)throw new Error('Password needed');localStorage.setItem('notes-pass',pw);continue}
+  if(!r.ok)throw new Error(j.error||r.statusText);
+  return j;
+ }
+}
+async function sync(){
+ status('Syncing…');
+ try{
+  const files=await api('GET'),keep=notes.filter(n=>n.dirty||n.saving);
+  const remote=files.filter(c=>!keep.some(k=>k.path===c.path)).map(c=>{
+   const n=parse(c.content,c.path.split('/').pop());
+   return Object.assign(n,{id:c.path,path:c.path,sha:c.sha,dirty:false,folder:c.path.slice(6).split('/').slice(0,-1).join('/')});
+  });
+  notes=remote.concat(keep);save();
+  if(editing)renderSide();else route();
+  status('Synced with GitHub');
+ }catch(e){status(e.message,1)}
+}
+async function persist(n){
+ if(!n.path&&!n.body.trim()&&n.title==='Untitled'){notes=notes.filter(x=>x!==n);save();renderSide();return}
+ n.saving=true;n.dirty=true;save();status('Saving…');
+ try{
+  await queue(async()=>{
+   let want=pathFor(n);
+   if(want!==n.path&&notes.some(x=>x!==n&&x.path===want))want=want.replace(/\.md$/,'-'+uid().slice(0,4)+'.md');
+   const old=n.path&&n.path!==want?{path:n.path,sha:n.sha}:null;
+   const r=await api('PUT',{path:want,content:toMd(n),sha:old?undefined:(n.sha||undefined),message:(n.path?'Update ':'Add ')+n.title});
+   n.path=want;n.sha=r.sha;
+   if(old)await api('DELETE',{path:old.path,sha:old.sha});
+   const was=n.id;n.id=want;
+   if(cur===was){cur=want;history.replaceState(null,'','#/'+encodeURIComponent(want))}
+  });
+  n.dirty=false;n.saving=false;save();renderSide();status('Saved to GitHub');
+ }catch(e){n.saving=false;status('Not saved: '+e.message,1)}
+}
+function remove(n){
+ notes=notes.filter(x=>x!==n);save();
+ status('Deleting…');
+ queue(()=>n.path&&api('DELETE',{path:n.path,sha:n.sha})).then(()=>status('Deleted from GitHub')).catch(e=>status('Not deleted: '+e.message,1));
+}
+addEventListener('hashchange',route);
+route();sync();
+</script>
+</body>
+</html>
