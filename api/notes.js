@@ -1,6 +1,11 @@
 const crypto = require('crypto');
-const URL_ = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const find = (re) => {
+  const k = Object.keys(process.env).find((k) => re.test(k) && !/READ_ONLY/.test(k));
+  return k ? process.env[k] : undefined;
+};
+// Works with any prefix Vercel gives the variables (KV_, STORAGE_, UPSTASH_REDIS_ ...)
+const URL_ = find(/(REST_API_URL|REDIS_REST_URL)$/);
+const TOKEN = find(/(REST_API_TOKEN|REDIS_REST_TOKEN)$/);
 const P = process.env.APP_PASSWORD;
 
 const redis = async (cmd) => {
@@ -16,7 +21,7 @@ const authed = (s) => {
 
 module.exports = async (req, res) => {
   try {
-    if (!URL_ || !TOKEN) return res.status(500).json({ error: 'Database is not connected' });
+    if (!URL_ || !TOKEN) return res.status(500).json({ error: 'Database is not connected: ' + (!URL_ ? 'REST URL' : 'REST token') + ' variable not found. Redeploy after connecting the database.' });
     if (!authed(req.headers['x-password'])) return res.status(401).json({ error: 'Wrong password' });
 
     if (req.method === 'GET') {
