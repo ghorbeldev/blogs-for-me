@@ -88,7 +88,7 @@ let notes=[];try{notes=JSON.parse(localStorage.getItem(K)||'[]')}catch(e){}
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(notes))}catch(e){alert('Storage is full. Export a backup and delete old notes.')}};
 let f={folder:'',tag:'',pinned:false},cur=null,editing=false;
 const uid=()=>Math.random().toString(36).slice(2,10);
-const mk=(title='Untitled',body='',folder='',tags=[])=>({id:uid(),title,folder,tags,body,updated:Date.now(),pinned:false,path:null,sha:null,dirty:true});
+const mk=(title='Untitled',body='',folder='',tags=[])=>({id:uid(),title,folder,tags,body,updated:Date.now(),pinned:false,dirty:true});
 const allTags=n=>[...new Set([...n.tags,...[...n.body.matchAll(/(?:^|\s)#([A-Za-z][\w\-\/]*)/g)].map(m=>m[1])])];
 
 function filtered(){
@@ -169,8 +169,6 @@ $('#imp').onchange=async e=>{
  save();e.target.value='';renderSide();
 };
 $('#ref').onclick=sync;
-const slug=s=>s.trim().replace(/[\\\/:*?"<>|#%]+/g,'').replace(/\.{2,}/g,'.').replace(/\s+/g,' ').slice(0,80)||'untitled';
-const pathFor=n=>'notes/'+(n.folder?n.folder.split('/').map(slug).join('/')+'/':'')+slug(n.title)+'.md';
 const status=(m,err)=>{const e=$('#st');e.textContent=m;e.className=err?'err':''};
 let q=Promise.resolve();
 const queue=fn=>{const p=q.then(fn);q=p.catch(()=>{});return p};
@@ -187,37 +185,25 @@ async function api(method,body){
 async function sync(){
  status('Syncing…');
  try{
-  const files=await api('GET'),keep=notes.filter(n=>n.dirty||n.saving);
-  const remote=files.filter(c=>!keep.some(k=>k.path===c.path)).map(c=>{
-   const n=parse(c.content,c.path.split('/').pop());
-   return Object.assign(n,{id:c.path,path:c.path,sha:c.sha,dirty:false,folder:c.path.slice(6).split('/').slice(0,-1).join('/')});
-  });
+  const list=await api('GET'),keep=notes.filter(n=>n.dirty||n.saving);
+  const remote=list.filter(r=>!keep.some(k=>k.id===r.id)).map(r=>Object.assign(mk(),r,{dirty:false,synced:true}));
   notes=remote.concat(keep);save();
   if(editing)renderSide();else route();
-  status('Synced with GitHub');
+  status('Synced');
  }catch(e){status(e.message,1)}
 }
 async function persist(n){
- if(!n.path&&!n.body.trim()&&n.title==='Untitled'){notes=notes.filter(x=>x!==n);save();renderSide();return}
+ if(!n.synced&&!n.body.trim()&&n.title==='Untitled'){notes=notes.filter(x=>x!==n);save();renderSide();return}
  n.saving=true;n.dirty=true;save();status('Saving…');
  try{
-  await queue(async()=>{
-   let want=pathFor(n);
-   if(want!==n.path&&notes.some(x=>x!==n&&x.path===want))want=want.replace(/\.md$/,'-'+uid().slice(0,4)+'.md');
-   const old=n.path&&n.path!==want?{path:n.path,sha:n.sha}:null;
-   const r=await api('PUT',{path:want,content:toMd(n),sha:old?undefined:(n.sha||undefined),message:(n.path?'Update ':'Add ')+n.title});
-   n.path=want;n.sha=r.sha;
-   if(old)await api('DELETE',{path:old.path,sha:old.sha});
-   const was=n.id;n.id=want;
-   if(cur===was){cur=want;history.replaceState(null,'','#/'+encodeURIComponent(want))}
-  });
-  n.dirty=false;n.saving=false;save();renderSide();status('Saved to GitHub');
+  const {id,title,folder,tags,body,updated,pinned}=n;
+  await queue(()=>api('PUT',{note:{id,title,folder,tags,body,updated,pinned}}));
+  n.dirty=false;n.saving=false;n.synced=true;save();renderSide();status('Saved');
  }catch(e){n.saving=false;status('Not saved: '+e.message,1)}
 }
 function remove(n){
- notes=notes.filter(x=>x!==n);save();
- status('Deleting…');
- queue(()=>n.path&&api('DELETE',{path:n.path,sha:n.sha})).then(()=>status('Deleted from GitHub')).catch(e=>status('Not deleted: '+e.message,1));
+ notes=notes.filter(x=>x!==n);save();status('Deleting…');
+ queue(()=>api('DELETE',{id:n.id})).then(()=>status('Deleted')).catch(e=>status('Not deleted: '+e.message,1));
 }
 addEventListener('hashchange',route);
 route();sync();
